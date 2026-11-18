@@ -318,14 +318,7 @@ export default function DashboardClient({
           {/* Tab Views */}
           {activeTab === 'overview' && (
             <div className="space-y-6">
-              <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
-                <div className="xl:col-span-5">
-                  <BloodPressureForm onCreated={handleCreated} />
-                </div>
-                <div className="xl:col-span-7">
-                  <WeeklySummaryPanel summary={summary} />
-                </div>
-              </div>
+              <WeeklySummaryPanel summary={summary} />
               <TrendChart logs={logs} />
               <HistoryTable
                 logs={logs}
