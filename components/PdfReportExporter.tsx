@@ -2,13 +2,14 @@
 
 import { useRef, useState } from 'react';
 import { FileDown, Loader2 } from 'lucide-react';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 import {
   classifyBloodPressure,
   formatThaiDate,
   formatThaiDateTime,
   PERIOD_LABELS,
   type BloodPressureRecord,
-  type TimePeriodType,
   type WeeklySummary,
 } from '@/lib/bp-utils';
 
@@ -22,13 +23,12 @@ interface UserProfileInfo {
 interface PdfReportExporterProps {
   user: UserProfileInfo;
   logs: BloodPressureRecord[];
-  summary: WeeklySummary;
+  summary?: WeeklySummary;
 }
 
 export default function PdfReportExporter({
   user,
   logs,
-  summary,
 }: PdfReportExporterProps) {
   const reportRef = useRef<HTMLDivElement>(null);
   const [exporting, setExporting] = useState(false);
@@ -40,17 +40,12 @@ export default function PdfReportExporter({
     setErrorMsg('');
 
     try {
-      const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
-        import('html2canvas'),
-        import('jspdf'),
-      ]);
 
       const canvas = await html2canvas(reportRef.current, {
         scale: 2,
         useCORS: true,
         backgroundColor: '#ffffff',
         onclone: (clonedDoc) => {
-          // Remove Tailwind v4 stylesheets that contain oklch() unsupported by html2canvas
           clonedDoc
             .querySelectorAll('style, link[rel="stylesheet"]')
             .forEach((el) => el.remove());
@@ -85,7 +80,7 @@ export default function PdfReportExporter({
       }
 
       const dateSlug = new Date().toISOString().slice(0, 10);
-      const filename = `PulseLog-Health-Report-${dateSlug}.pdf`;
+      const filename = `PulseLog-History-${dateSlug}.pdf`;
       const blob = pdf.output('blob');
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -103,9 +98,6 @@ export default function PdfReportExporter({
       setExporting(false);
     }
   }
-
-  const recentLogs = logs.slice(0, 25);
-  const periods: TimePeriodType[] = ['MORNING', 'AFTERNOON', 'EVENING'];
 
   return (
     <>
@@ -135,7 +127,7 @@ export default function PdfReportExporter({
         </button>
       </div>
 
-      {/* Offscreen A4 Clinical Report using pure hex/rgb inline styles for html2canvas compatibility */}
+      {/* Offscreen A4 Report: History Table Only */}
       <div
         aria-hidden="true"
         ref={reportRef}
@@ -146,17 +138,16 @@ export default function PdfReportExporter({
           width: '794px',
           backgroundColor: '#ffffff',
           color: '#0f172a',
-          padding: '40px',
+          padding: '36px 40px',
           fontFamily: '"IBM Plex Sans Thai", "Plus Jakarta Sans", sans-serif',
           lineHeight: 1.5,
         }}
       >
-        {/* Header */}
         <div
           style={{
             borderBottom: '2px solid #0f766e',
-            paddingBottom: '16px',
-            marginBottom: '24px',
+            paddingBottom: '12px',
+            marginBottom: '20px',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'flex-end',
@@ -165,357 +156,122 @@ export default function PdfReportExporter({
           <div>
             <div
               style={{
-                fontSize: '11px',
-                fontWeight: 700,
-                color: '#0f766e',
-                letterSpacing: '0.06em',
-              }}
-            >
-              PULSELOG CLINICAL SUMMARY
-            </div>
-            <div
-              style={{
-                fontSize: '22px',
+                fontSize: '20px',
                 fontWeight: 700,
                 color: '#0f172a',
-                marginTop: '4px',
               }}
             >
-              รายงานสรุปผลความดันโลหิตเพื่อปรึกษาแพทย์
+              ตารางประวัติการบันทึกความดันโลหิต
+            </div>
+            <div style={{ fontSize: '12px', color: '#475569', marginTop: '2px' }}>
+              ผู้ใช้งาน: {user.name}
+              {user.age ? ` · อายุ ${user.age} ปี` : ''}
+              {user.gender ? ` · เพศ${user.gender}` : ''}
             </div>
           </div>
           <div style={{ textAlign: 'right', fontSize: '12px', color: '#64748b' }}>
             <div>วันที่ออกรายงาน: {formatThaiDate(new Date())}</div>
-            <div>จำนวนบันทึกทั้งหมด: {logs.length} รายการ</div>
+            <div>ทั้งหมด {logs.length} รายการ</div>
           </div>
         </div>
 
-        {/* Patient Info */}
-        <div
+        <table
           style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
-            gap: '16px',
-            padding: '16px',
-            backgroundColor: '#f8fafc',
-            border: '1px solid #e2e8f0',
-            borderRadius: '8px',
-            marginBottom: '24px',
-            fontSize: '13px',
+            width: '100%',
+            borderCollapse: 'collapse',
+            fontSize: '12px',
+            textAlign: 'left',
           }}
         >
-          <div>
-            <div style={{ fontSize: '11px', color: '#64748b' }}>
-              ชื่อผู้ป่วย / ผู้ใช้งาน
-            </div>
-            <div style={{ fontWeight: 600, color: '#0f172a', marginTop: '2px' }}>
-              {user.name}
-            </div>
-          </div>
-          <div>
-            <div style={{ fontSize: '11px', color: '#64748b' }}>อีเมลติดต่อ</div>
-            <div style={{ fontWeight: 500, color: '#1e293b', marginTop: '2px' }}>
-              {user.email}
-            </div>
-          </div>
-          <div>
-            <div style={{ fontSize: '11px', color: '#64748b' }}>ข้อมูลพื้นฐาน</div>
-            <div style={{ fontWeight: 500, color: '#1e293b', marginTop: '2px' }}>
-              {user.gender ? `เพศ${user.gender}` : 'ไม่ระบุเพศ'} ·{' '}
-              {user.age ? `อายุ ${user.age} ปี` : 'ไม่ระบุอายุ'}
-            </div>
-          </div>
-        </div>
-
-        {/* 7-Day Automated Summary */}
-        <div style={{ marginBottom: '24px' }}>
-          <div
-            style={{
-              fontSize: '15px',
-              fontWeight: 700,
-              color: '#0f172a',
-              marginBottom: '8px',
-            }}
-          >
-            สรุปผลรอบ 7 วันล่าสุด
-          </div>
-          <div
-            style={{
-              fontSize: '13px',
-              color: '#334155',
-              marginBottom: '16px',
-            }}
-          >
-            {summary.summaryText}
-          </div>
-
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(4, 1fr)',
-              gap: '12px',
-            }}
-          >
-            <div
+          <thead>
+            <tr
               style={{
-                padding: '12px',
-                border: '1px solid #e2e8f0',
-                borderRadius: '8px',
+                backgroundColor: '#f8fafc',
+                borderTop: '1px solid #cbd5e1',
+                borderBottom: '1px solid #cbd5e1',
+                color: '#334155',
               }}
             >
-              <div style={{ fontSize: '11px', color: '#64748b' }}>
-                ความดันเฉลี่ย 7 วัน
-              </div>
-              <div
-                style={{
-                  fontSize: '18px',
-                  fontWeight: 700,
-                  color: '#0f172a',
-                  marginTop: '4px',
-                }}
-              >
-                {summary.totalReadings > 0
-                  ? `${summary.avgSystolic}/${summary.avgDiastolic}`
-                  : '—'}
-              </div>
-              <div style={{ fontSize: '11px', color: '#64748b' }}>mmHg</div>
-            </div>
-
-            <div
-              style={{
-                padding: '12px',
-                border: '1px solid #e2e8f0',
-                borderRadius: '8px',
-              }}
-            >
-              <div style={{ fontSize: '11px', color: '#64748b' }}>
-                ชีพจรเฉลี่ย 7 วัน
-              </div>
-              <div
-                style={{
-                  fontSize: '18px',
-                  fontWeight: 700,
-                  color: '#0f172a',
-                  marginTop: '4px',
-                }}
-              >
-                {summary.totalReadings > 0 ? summary.avgPulse : '—'}
-              </div>
-              <div style={{ fontSize: '11px', color: '#64748b' }}>bpm</div>
-            </div>
-
-            <div
-              style={{
-                padding: '12px',
-                border: '1px solid #e2e8f0',
-                borderRadius: '8px',
-              }}
-            >
-              <div style={{ fontSize: '11px', color: '#64748b' }}>
-                ตัวบน ต่ำสุด–สูงสุด
-              </div>
-              <div
-                style={{
-                  fontSize: '18px',
-                  fontWeight: 700,
-                  color: '#0f172a',
-                  marginTop: '4px',
-                }}
-              >
-                {summary.totalReadings > 0
-                  ? `${summary.minSystolic}–${summary.maxSystolic}`
-                  : '—'}
-              </div>
-              <div style={{ fontSize: '11px', color: '#64748b' }}>mmHg</div>
-            </div>
-
-            <div
-              style={{
-                padding: '12px',
-                border: '1px solid #e2e8f0',
-                borderRadius: '8px',
-              }}
-            >
-              <div style={{ fontSize: '11px', color: '#64748b' }}>เกณฑ์เฉลี่ย</div>
-              <div
-                style={{
-                  fontSize: '13px',
-                  fontWeight: 700,
-                  color: '#115e59',
-                  marginTop: '6px',
-                }}
-              >
-                {summary.category ? summary.category.label : 'ไม่มีข้อมูล'}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Period Averages */}
-        <div style={{ marginBottom: '24px' }}>
-          <div
-            style={{
-              fontSize: '13px',
-              fontWeight: 700,
-              color: '#0f172a',
-              marginBottom: '8px',
-            }}
-          >
-            ค่าเฉลี่ยแยกตามช่วงเวลา (7 วันล่าสุด)
-          </div>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(3, 1fr)',
-              gap: '12px',
-            }}
-          >
-            {periods.map((p) => {
-              const stat = summary.byPeriod[p];
-              return (
-                <div
-                  key={p}
+              <th style={{ padding: '9px 8px' }}>วันที่ / เวลา</th>
+              <th style={{ padding: '9px 8px' }}>ช่วงเวลา</th>
+              <th style={{ padding: '9px 8px', textAlign: 'right' }}>
+                ความดัน (mmHg)
+              </th>
+              <th style={{ padding: '9px 8px', textAlign: 'right' }}>
+                ชีพจร (bpm)
+              </th>
+              <th style={{ padding: '9px 8px' }}>เกณฑ์ประเมิน</th>
+              <th style={{ padding: '9px 8px' }}>หมายเหตุ</th>
+            </tr>
+          </thead>
+          <tbody>
+            {logs.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={6}
                   style={{
-                    padding: '12px',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '8px',
+                    padding: '28px 0',
+                    textAlign: 'center',
+                    color: '#64748b',
                   }}
                 >
-                  <div style={{ fontSize: '11px', color: '#64748b' }}>
-                    {PERIOD_LABELS[p]} ({stat ? stat.count : 0} ครั้ง)
-                  </div>
-                  <div
-                    style={{
-                      fontSize: '13px',
-                      fontWeight: 700,
-                      color: '#0f172a',
-                      marginTop: '4px',
-                    }}
-                  >
-                    {stat
-                      ? `${stat.avgSystolic}/${stat.avgDiastolic} mmHg · ${stat.avgPulse} bpm`
-                      : 'ไม่มีข้อมูล'}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Recent Logs Table */}
-        <div>
-          <div
-            style={{
-              fontSize: '13px',
-              fontWeight: 700,
-              color: '#0f172a',
-              marginBottom: '8px',
-            }}
-          >
-            ตารางบันทึกการวัดความดันล่าสุด (สูงสุด 25 รายการ)
-          </div>
-          <table
-            style={{
-              width: '100%',
-              borderCollapse: 'collapse',
-              fontSize: '12px',
-              textAlign: 'left',
-            }}
-          >
-            <thead>
-              <tr style={{ borderBottom: '1px solid #cbd5e1', color: '#475569' }}>
-                <th style={{ padding: '8px 6px 8px 0' }}>วันที่ / เวลา</th>
-                <th style={{ padding: '8px 6px' }}>ช่วงเวลา</th>
-                <th style={{ padding: '8px 6px', textAlign: 'right' }}>
-                  SYS/DIA (mmHg)
-                </th>
-                <th style={{ padding: '8px 6px', textAlign: 'right' }}>ชีพจร</th>
-                <th style={{ padding: '8px 6px' }}>เกณฑ์</th>
-                <th style={{ padding: '8px 0 8px 6px' }}>หมายเหตุ</th>
+                  ยังไม่มีรายการบันทึกความดันโลหิต
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {recentLogs.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={6}
+            ) : (
+              logs.map((log, idx) => {
+                const cat = classifyBloodPressure(log.systolic, log.diastolic);
+                return (
+                  <tr
+                    key={log.id}
                     style={{
-                      padding: '24px 0',
-                      textAlign: 'center',
-                      color: '#64748b',
+                      borderBottom: '1px solid #e2e8f0',
+                      backgroundColor: idx % 2 === 1 ? '#f8fafc' : '#ffffff',
                     }}
                   >
-                    ยังไม่มีรายการบันทึกความดันโลหิต
-                  </td>
-                </tr>
-              ) : (
-                recentLogs.map((log) => {
-                  const cat = classifyBloodPressure(log.systolic, log.diastolic);
-                  return (
-                    <tr
-                      key={log.id}
-                      style={{ borderBottom: '1px solid #e2e8f0' }}
+                    <td style={{ padding: '8px', color: '#334155' }}>
+                      {formatThaiDateTime(log.measuredAt)}
+                    </td>
+                    <td style={{ padding: '8px', color: '#334155' }}>
+                      {PERIOD_LABELS[log.period]}
+                    </td>
+                    <td
+                      style={{
+                        padding: '8px',
+                        textAlign: 'right',
+                        fontWeight: 600,
+                        color: '#0f172a',
+                      }}
                     >
-                      <td style={{ padding: '7px 6px 7px 0', color: '#334155' }}>
-                        {formatThaiDateTime(log.measuredAt)}
-                      </td>
-                      <td style={{ padding: '7px 6px', color: '#334155' }}>
-                        {PERIOD_LABELS[log.period]}
-                      </td>
-                      <td
-                        style={{
-                          padding: '7px 6px',
-                          textAlign: 'right',
-                          fontWeight: 600,
-                          color: '#0f172a',
-                        }}
-                      >
-                        {log.systolic}/{log.diastolic}
-                      </td>
-                      <td
-                        style={{
-                          padding: '7px 6px',
-                          textAlign: 'right',
-                          color: '#334155',
-                        }}
-                      >
-                        {log.pulse}
-                      </td>
-                      <td
-                        style={{
-                          padding: '7px 6px',
-                          fontWeight: 600,
-                          color: cat.dotColor,
-                        }}
-                      >
-                        {cat.shortLabel}
-                      </td>
-                      <td style={{ padding: '7px 0 7px 6px', color: '#475569' }}>
-                        {log.note || '—'}
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Footer */}
-        <div
-          style={{
-            marginTop: '32px',
-            paddingTop: '12px',
-            borderTop: '1px solid #e2e8f0',
-            fontSize: '11px',
-            color: '#94a3b8',
-            display: 'flex',
-            justifyContent: 'space-between',
-          }}
-        >
-          <span>สร้างโดยระบบ PulseLog Health Dashboard</span>
-          <span>เอกสารนี้จัดทำขึ้นเพื่อประกอบการปรึกษาแพทย์</span>
-        </div>
+                      {log.systolic}/{log.diastolic}
+                    </td>
+                    <td
+                      style={{
+                        padding: '8px',
+                        textAlign: 'right',
+                        color: '#334155',
+                      }}
+                    >
+                      {log.pulse}
+                    </td>
+                    <td
+                      style={{
+                        padding: '8px',
+                        fontWeight: 600,
+                        color: cat.dotColor,
+                      }}
+                    >
+                      {cat.shortLabel}
+                    </td>
+                    <td style={{ padding: '8px', color: '#475569' }}>
+                      {log.note || '—'}
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
       </div>
     </>
   );
