@@ -1,0 +1,42 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TimePeriod {
+  MORNING
+  AFTERNOON
+  EVENING
+}
+
+model User {
+  id        String             @id @default(cuid())
+  name      String
+  email     String             @unique
+  password  String
+  age       Int?
+  gender    String?
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+  logs      BloodPressureLog[]
+}
+
+model BloodPressureLog {
+  id         String     @id @default(cuid())
+  userId     String
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  systolic   Int
+  diastolic  Int
+  pulse      Int
+  period     TimePeriod
+  note       String?
+  measuredAt DateTime   @default(now())
+  createdAt  DateTime   @default(now())
+
+  @@index([userId, measuredAt])
+}
