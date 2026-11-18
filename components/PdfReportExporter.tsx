@@ -32,10 +32,12 @@ export default function PdfReportExporter({
 }: PdfReportExporterProps) {
   const reportRef = useRef<HTMLDivElement>(null);
   const [exporting, setExporting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
   async function handleExportPdf() {
     if (!reportRef.current) return;
     setExporting(true);
+    setErrorMsg('');
 
     try {
       const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
@@ -47,6 +49,19 @@ export default function PdfReportExporter({
         scale: 2,
         useCORS: true,
         backgroundColor: '#ffffff',
+        onclone: (clonedDoc) => {
+          // Remove Tailwind v4 stylesheets that contain oklch() unsupported by html2canvas
+          clonedDoc
+            .querySelectorAll('style, link[rel="stylesheet"]')
+            .forEach((el) => el.remove());
+
+          const style = clonedDoc.createElement('style');
+          style.textContent = `
+            * { box-sizing: border-box; margin: 0; padding: 0; }
+            body { background: #ffffff; color: #0f172a; font-family: "IBM Plex Sans Thai", "Plus Jakarta Sans", sans-serif; }
+          `;
+          clonedDoc.head.appendChild(style);
+        },
       });
 
       const imgData = canvas.toDataURL('image/png');
@@ -70,9 +85,20 @@ export default function PdfReportExporter({
       }
 
       const dateSlug = new Date().toISOString().slice(0, 10);
-      pdf.save(`PulseLog-Health-Report-${dateSlug}.pdf`);
+      const filename = `PulseLog-Health-Report-${dateSlug}.pdf`;
+      const blob = pdf.output('blob');
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
     } catch (error) {
       console.error('PDF export error:', error);
+      setErrorMsg('ไม่สามารถสร้างไฟล์ PDF ได้ กรุณาลองใหม่อีกครั้ง');
+      setTimeout(() => setErrorMsg(''), 4000);
     } finally {
       setExporting(false);
     }
@@ -83,59 +109,118 @@ export default function PdfReportExporter({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={handleExportPdf}
-        disabled={exporting}
-        className="h-10 px-4 inline-flex items-center justify-center gap-2 text-sm font-semibold text-white bg-teal-700 hover:bg-teal-800 disabled:opacity-60 rounded-lg transition-colors cursor-pointer whitespace-nowrap shrink-0"
-      >
-        {exporting ? (
-          <>
-            <Loader2 className="w-4 h-4 animate-spin" />
-            <span>กำลังสร้าง PDF...</span>
-          </>
-        ) : (
-          <>
-            <FileDown className="w-4 h-4" />
-            <span>ส่งออกรายงาน PDF</span>
-          </>
+      <div className="flex items-center gap-2">
+        {errorMsg && (
+          <span className="text-xs text-red-600 hidden sm:inline">
+            {errorMsg}
+          </span>
         )}
-      </button>
+        <button
+          type="button"
+          onClick={handleExportPdf}
+          disabled={exporting}
+          className="h-10 px-4 inline-flex items-center justify-center gap-2 text-sm font-semibold text-white bg-teal-700 hover:bg-teal-800 disabled:opacity-60 rounded-lg transition-colors cursor-pointer whitespace-nowrap shrink-0"
+        >
+          {exporting ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span>กำลังสร้าง PDF...</span>
+            </>
+          ) : (
+            <>
+              <FileDown className="w-4 h-4" />
+              <span>ส่งออกรายงาน PDF</span>
+            </>
+          )}
+        </button>
+      </div>
 
-      {/* Offscreen A4 Clinical Report for Crisp Thai PDF Rendering */}
+      {/* Offscreen A4 Clinical Report using pure hex/rgb inline styles for html2canvas compatibility */}
       <div
         aria-hidden="true"
-        className="fixed -left-[9999px] top-0 w-[794px] bg-white text-slate-900 p-10"
         ref={reportRef}
+        style={{
+          position: 'fixed',
+          left: '-9999px',
+          top: 0,
+          width: '794px',
+          backgroundColor: '#ffffff',
+          color: '#0f172a',
+          padding: '40px',
+          fontFamily: '"IBM Plex Sans Thai", "Plus Jakarta Sans", sans-serif',
+          lineHeight: 1.5,
+        }}
       >
-        <div className="border-b-2 border-teal-700 pb-4 mb-6 flex items-end justify-between">
+        {/* Header */}
+        <div
+          style={{
+            borderBottom: '2px solid #0f766e',
+            paddingBottom: '16px',
+            marginBottom: '24px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'flex-end',
+          }}
+        >
           <div>
-            <div className="text-xs font-semibold text-teal-700 tracking-wide">
+            <div
+              style={{
+                fontSize: '11px',
+                fontWeight: 700,
+                color: '#0f766e',
+                letterSpacing: '0.06em',
+              }}
+            >
               PULSELOG CLINICAL SUMMARY
             </div>
-            <h1 className="text-2xl font-bold text-slate-900 mt-1">
+            <div
+              style={{
+                fontSize: '22px',
+                fontWeight: 700,
+                color: '#0f172a',
+                marginTop: '4px',
+              }}
+            >
               รายงานสรุปผลความดันโลหิตเพื่อปรึกษาแพทย์
-            </h1>
+            </div>
           </div>
-          <div className="text-right text-xs text-slate-500">
+          <div style={{ textAlign: 'right', fontSize: '12px', color: '#64748b' }}>
             <div>วันที่ออกรายงาน: {formatThaiDate(new Date())}</div>
             <div>จำนวนบันทึกทั้งหมด: {logs.length} รายการ</div>
           </div>
         </div>
 
         {/* Patient Info */}
-        <div className="grid grid-cols-3 gap-4 p-4 bg-slate-50 border border-slate-200 rounded-lg mb-6 text-sm">
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, 1fr)',
+            gap: '16px',
+            padding: '16px',
+            backgroundColor: '#f8fafc',
+            border: '1px solid #e2e8f0',
+            borderRadius: '8px',
+            marginBottom: '24px',
+            fontSize: '13px',
+          }}
+        >
           <div>
-            <div className="text-xs text-slate-500">ชื่อผู้ป่วย / ผู้ใช้งาน</div>
-            <div className="font-semibold text-slate-900 mt-0.5">{user.name}</div>
+            <div style={{ fontSize: '11px', color: '#64748b' }}>
+              ชื่อผู้ป่วย / ผู้ใช้งาน
+            </div>
+            <div style={{ fontWeight: 600, color: '#0f172a', marginTop: '2px' }}>
+              {user.name}
+            </div>
           </div>
           <div>
-            <div className="text-xs text-slate-500">อีเมลติดต่อ</div>
-            <div className="font-medium text-slate-800 mt-0.5">{user.email}</div>
+            <div style={{ fontSize: '11px', color: '#64748b' }}>อีเมลติดต่อ</div>
+            <div style={{ fontWeight: 500, color: '#1e293b', marginTop: '2px' }}>
+              {user.email}
+            </div>
           </div>
           <div>
-            <div className="text-xs text-slate-500">ข้อมูลพื้นฐาน</div>
-            <div className="font-medium text-slate-800 mt-0.5">
+            <div style={{ fontSize: '11px', color: '#64748b' }}>ข้อมูลพื้นฐาน</div>
+            <div style={{ fontWeight: 500, color: '#1e293b', marginTop: '2px' }}>
               {user.gender ? `เพศ${user.gender}` : 'ไม่ระบุเพศ'} ·{' '}
               {user.age ? `อายุ ${user.age} ปี` : 'ไม่ระบุอายุ'}
             </div>
@@ -143,43 +228,123 @@ export default function PdfReportExporter({
         </div>
 
         {/* 7-Day Automated Summary */}
-        <div className="mb-6">
-          <h2 className="text-base font-bold text-slate-900 mb-2">
+        <div style={{ marginBottom: '24px' }}>
+          <div
+            style={{
+              fontSize: '15px',
+              fontWeight: 700,
+              color: '#0f172a',
+              marginBottom: '8px',
+            }}
+          >
             สรุปผลรอบ 7 วันล่าสุด
-          </h2>
-          <p className="text-sm text-slate-700 mb-4 leading-relaxed">
+          </div>
+          <div
+            style={{
+              fontSize: '13px',
+              color: '#334155',
+              marginBottom: '16px',
+            }}
+          >
             {summary.summaryText}
-          </p>
+          </div>
 
-          <div className="grid grid-cols-4 gap-3 text-sm">
-            <div className="p-3 border border-slate-200 rounded-lg">
-              <div className="text-xs text-slate-500">ความดันเฉลี่ย 7 วัน</div>
-              <div className="text-lg font-mono font-bold text-slate-900 mt-1">
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(4, 1fr)',
+              gap: '12px',
+            }}
+          >
+            <div
+              style={{
+                padding: '12px',
+                border: '1px solid #e2e8f0',
+                borderRadius: '8px',
+              }}
+            >
+              <div style={{ fontSize: '11px', color: '#64748b' }}>
+                ความดันเฉลี่ย 7 วัน
+              </div>
+              <div
+                style={{
+                  fontSize: '18px',
+                  fontWeight: 700,
+                  color: '#0f172a',
+                  marginTop: '4px',
+                }}
+              >
                 {summary.totalReadings > 0
                   ? `${summary.avgSystolic}/${summary.avgDiastolic}`
                   : '—'}
               </div>
-              <div className="text-xs text-slate-500">mmHg</div>
+              <div style={{ fontSize: '11px', color: '#64748b' }}>mmHg</div>
             </div>
-            <div className="p-3 border border-slate-200 rounded-lg">
-              <div className="text-xs text-slate-500">ชีพจรเฉลี่ย 7 วัน</div>
-              <div className="text-lg font-mono font-bold text-slate-900 mt-1">
+
+            <div
+              style={{
+                padding: '12px',
+                border: '1px solid #e2e8f0',
+                borderRadius: '8px',
+              }}
+            >
+              <div style={{ fontSize: '11px', color: '#64748b' }}>
+                ชีพจรเฉลี่ย 7 วัน
+              </div>
+              <div
+                style={{
+                  fontSize: '18px',
+                  fontWeight: 700,
+                  color: '#0f172a',
+                  marginTop: '4px',
+                }}
+              >
                 {summary.totalReadings > 0 ? summary.avgPulse : '—'}
               </div>
-              <div className="text-xs text-slate-500">bpm</div>
+              <div style={{ fontSize: '11px', color: '#64748b' }}>bpm</div>
             </div>
-            <div className="p-3 border border-slate-200 rounded-lg">
-              <div className="text-xs text-slate-500">ตัวบน ต่ำสุด–สูงสุด</div>
-              <div className="text-lg font-mono font-bold text-slate-900 mt-1">
+
+            <div
+              style={{
+                padding: '12px',
+                border: '1px solid #e2e8f0',
+                borderRadius: '8px',
+              }}
+            >
+              <div style={{ fontSize: '11px', color: '#64748b' }}>
+                ตัวบน ต่ำสุด–สูงสุด
+              </div>
+              <div
+                style={{
+                  fontSize: '18px',
+                  fontWeight: 700,
+                  color: '#0f172a',
+                  marginTop: '4px',
+                }}
+              >
                 {summary.totalReadings > 0
                   ? `${summary.minSystolic}–${summary.maxSystolic}`
                   : '—'}
               </div>
-              <div className="text-xs text-slate-500">mmHg</div>
+              <div style={{ fontSize: '11px', color: '#64748b' }}>mmHg</div>
             </div>
-            <div className="p-3 border border-slate-200 rounded-lg">
-              <div className="text-xs text-slate-500">เกณฑ์เฉลี่ย</div>
-              <div className="text-sm font-bold text-teal-800 mt-1.5">
+
+            <div
+              style={{
+                padding: '12px',
+                border: '1px solid #e2e8f0',
+                borderRadius: '8px',
+              }}
+            >
+              <div style={{ fontSize: '11px', color: '#64748b' }}>เกณฑ์เฉลี่ย</div>
+              <div
+                style={{
+                  fontSize: '13px',
+                  fontWeight: 700,
+                  color: '#115e59',
+                  marginTop: '6px',
+                }}
+              >
                 {summary.category ? summary.category.label : 'ไม่มีข้อมูล'}
               </div>
             </div>
@@ -187,19 +352,46 @@ export default function PdfReportExporter({
         </div>
 
         {/* Period Averages */}
-        <div className="mb-6">
-          <h2 className="text-sm font-bold text-slate-900 mb-2">
+        <div style={{ marginBottom: '24px' }}>
+          <div
+            style={{
+              fontSize: '13px',
+              fontWeight: 700,
+              color: '#0f172a',
+              marginBottom: '8px',
+            }}
+          >
             ค่าเฉลี่ยแยกตามช่วงเวลา (7 วันล่าสุด)
-          </h2>
-          <div className="grid grid-cols-3 gap-3 text-sm">
+          </div>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, 1fr)',
+              gap: '12px',
+            }}
+          >
             {periods.map((p) => {
               const stat = summary.byPeriod[p];
               return (
-                <div key={p} className="p-3 border border-slate-200 rounded-lg">
-                  <div className="text-xs text-slate-500">
+                <div
+                  key={p}
+                  style={{
+                    padding: '12px',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '8px',
+                  }}
+                >
+                  <div style={{ fontSize: '11px', color: '#64748b' }}>
                     {PERIOD_LABELS[p]} ({stat ? stat.count : 0} ครั้ง)
                   </div>
-                  <div className="font-mono font-bold text-slate-900 mt-1">
+                  <div
+                    style={{
+                      fontSize: '13px',
+                      fontWeight: 700,
+                      color: '#0f172a',
+                      marginTop: '4px',
+                    }}
+                  >
                     {stat
                       ? `${stat.avgSystolic}/${stat.avgDiastolic} mmHg · ${stat.avgPulse} bpm`
                       : 'ไม่มีข้อมูล'}
@@ -212,24 +404,47 @@ export default function PdfReportExporter({
 
         {/* Recent Logs Table */}
         <div>
-          <h2 className="text-sm font-bold text-slate-900 mb-2">
+          <div
+            style={{
+              fontSize: '13px',
+              fontWeight: 700,
+              color: '#0f172a',
+              marginBottom: '8px',
+            }}
+          >
             ตารางบันทึกการวัดความดันล่าสุด (สูงสุด 25 รายการ)
-          </h2>
-          <table className="w-full text-left border-collapse text-xs">
+          </div>
+          <table
+            style={{
+              width: '100%',
+              borderCollapse: 'collapse',
+              fontSize: '12px',
+              textAlign: 'left',
+            }}
+          >
             <thead>
-              <tr className="border-b border-slate-300 text-slate-600">
-                <th className="py-2 pr-2">วันที่ / เวลา</th>
-                <th className="py-2 px-2">ช่วงเวลา</th>
-                <th className="py-2 px-2 text-right">SYS/DIA (mmHg)</th>
-                <th className="py-2 px-2 text-right">ชีพจร</th>
-                <th className="py-2 px-2">เกณฑ์</th>
-                <th className="py-2 pl-2">หมายเหตุ</th>
+              <tr style={{ borderBottom: '1px solid #cbd5e1', color: '#475569' }}>
+                <th style={{ padding: '8px 6px 8px 0' }}>วันที่ / เวลา</th>
+                <th style={{ padding: '8px 6px' }}>ช่วงเวลา</th>
+                <th style={{ padding: '8px 6px', textAlign: 'right' }}>
+                  SYS/DIA (mmHg)
+                </th>
+                <th style={{ padding: '8px 6px', textAlign: 'right' }}>ชีพจร</th>
+                <th style={{ padding: '8px 6px' }}>เกณฑ์</th>
+                <th style={{ padding: '8px 0 8px 6px' }}>หมายเหตุ</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200">
+            <tbody>
               {recentLogs.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-6 text-center text-slate-500">
+                  <td
+                    colSpan={6}
+                    style={{
+                      padding: '24px 0',
+                      textAlign: 'center',
+                      color: '#64748b',
+                    }}
+                  >
                     ยังไม่มีรายการบันทึกความดันโลหิต
                   </td>
                 </tr>
@@ -237,23 +452,45 @@ export default function PdfReportExporter({
                 recentLogs.map((log) => {
                   const cat = classifyBloodPressure(log.systolic, log.diastolic);
                   return (
-                    <tr key={log.id}>
-                      <td className="py-2 pr-2 font-mono text-slate-700">
+                    <tr
+                      key={log.id}
+                      style={{ borderBottom: '1px solid #e2e8f0' }}
+                    >
+                      <td style={{ padding: '7px 6px 7px 0', color: '#334155' }}>
                         {formatThaiDateTime(log.measuredAt)}
                       </td>
-                      <td className="py-2 px-2 text-slate-700">
+                      <td style={{ padding: '7px 6px', color: '#334155' }}>
                         {PERIOD_LABELS[log.period]}
                       </td>
-                      <td className="py-2 px-2 text-right font-mono font-semibold text-slate-900">
+                      <td
+                        style={{
+                          padding: '7px 6px',
+                          textAlign: 'right',
+                          fontWeight: 600,
+                          color: '#0f172a',
+                        }}
+                      >
                         {log.systolic}/{log.diastolic}
                       </td>
-                      <td className="py-2 px-2 text-right font-mono text-slate-700">
+                      <td
+                        style={{
+                          padding: '7px 6px',
+                          textAlign: 'right',
+                          color: '#334155',
+                        }}
+                      >
                         {log.pulse}
                       </td>
-                      <td className="py-2 px-2 font-medium text-slate-800">
+                      <td
+                        style={{
+                          padding: '7px 6px',
+                          fontWeight: 600,
+                          color: cat.dotColor,
+                        }}
+                      >
                         {cat.shortLabel}
                       </td>
-                      <td className="py-2 pl-2 text-slate-600">
+                      <td style={{ padding: '7px 0 7px 6px', color: '#475569' }}>
                         {log.note || '—'}
                       </td>
                     </tr>
@@ -264,7 +501,18 @@ export default function PdfReportExporter({
           </table>
         </div>
 
-        <div className="mt-8 pt-4 border-t border-slate-200 text-[11px] text-slate-400 flex justify-between">
+        {/* Footer */}
+        <div
+          style={{
+            marginTop: '32px',
+            paddingTop: '12px',
+            borderTop: '1px solid #e2e8f0',
+            fontSize: '11px',
+            color: '#94a3b8',
+            display: 'flex',
+            justifyContent: 'space-between',
+          }}
+        >
           <span>สร้างโดยระบบ PulseLog Health Dashboard</span>
           <span>เอกสารนี้จัดทำขึ้นเพื่อประกอบการปรึกษาแพทย์</span>
         </div>
