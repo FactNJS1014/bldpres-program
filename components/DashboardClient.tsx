@@ -64,6 +64,17 @@ export default function DashboardClient({
     );
   }
 
+  function handleUpdated(updatedLog: BloodPressureRecord) {
+    setLogs((prev) =>
+      prev
+        .map((item) => (item.id === updatedLog.id ? updatedLog : item))
+        .sort(
+          (a, b) =>
+            new Date(b.measuredAt).getTime() - new Date(a.measuredAt).getTime()
+        )
+    );
+  }
+
   function handleDeleted(id: string) {
     setLogs((prev) => prev.filter((item) => item.id !== id));
   }
@@ -316,7 +327,11 @@ export default function DashboardClient({
                 </div>
               </div>
               <TrendChart logs={logs} />
-              <HistoryTable logs={logs} onDeleted={handleDeleted} />
+              <HistoryTable
+                logs={logs}
+                onUpdated={handleUpdated}
+                onDeleted={handleDeleted}
+              />
             </div>
           )}
 
@@ -334,7 +349,11 @@ export default function DashboardClient({
           )}
 
           {activeTab === 'history' && (
-            <HistoryTable logs={logs} onDeleted={handleDeleted} />
+            <HistoryTable
+              logs={logs}
+              onUpdated={handleUpdated}
+              onDeleted={handleDeleted}
+            />
           )}
         </main>
       </div>
