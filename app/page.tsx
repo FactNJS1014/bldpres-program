@@ -247,29 +247,39 @@ export default async function HomePage() {
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     <tr>
-                      <td className="py-3 px-4 font-medium text-emerald-700">ความดันปกติ</td>
+                      <td className="py-3 px-4 font-medium text-emerald-700">ความดันที่ดี</td>
                       <td className="py-3 px-4 text-right font-mono tabular-nums">&lt; 120</td>
                       <td className="py-3 px-4 text-right font-mono tabular-nums">&lt; 80</td>
                     </tr>
                     <tr>
-                      <td className="py-3 px-4 font-medium text-amber-600">ความดันค่อนข้างสูง</td>
+                      <td className="py-3 px-4 font-medium text-sky-700">ความดันปกติ</td>
                       <td className="py-3 px-4 text-right font-mono tabular-nums">120 – 129</td>
-                      <td className="py-3 px-4 text-right font-mono tabular-nums">&lt; 80</td>
+                      <td className="py-3 px-4 text-right font-mono tabular-nums">80 – 84</td>
                     </tr>
                     <tr>
-                      <td className="py-3 px-4 font-medium text-amber-700">ความดันสูง ระยะที่ 1</td>
+                      <td className="py-3 px-4 font-medium text-sky-800">ความดันค่อนข้างสูง</td>
                       <td className="py-3 px-4 text-right font-mono tabular-nums">130 – 139</td>
-                      <td className="py-3 px-4 text-right font-mono tabular-nums">80 – 89</td>
+                      <td className="py-3 px-4 text-right font-mono tabular-nums">85 – 89</td>
                     </tr>
                     <tr>
-                      <td className="py-3 px-4 font-medium text-red-600">ความดันสูง ระยะที่ 2</td>
-                      <td className="py-3 px-4 text-right font-mono tabular-nums">140 – 179</td>
-                      <td className="py-3 px-4 text-right font-mono tabular-nums">90 – 119</td>
+                      <td className="py-3 px-4 font-medium text-amber-600">ความดันสูงเล็กน้อย</td>
+                      <td className="py-3 px-4 text-right font-mono tabular-nums">140 – 159</td>
+                      <td className="py-3 px-4 text-right font-mono tabular-nums">90 – 99</td>
                     </tr>
                     <tr>
-                      <td className="py-3 px-4 font-medium text-red-700">ความดันสูงวิกฤต</td>
+                      <td className="py-3 px-4 font-medium text-orange-700">ความดันสูงปานกลาง</td>
+                      <td className="py-3 px-4 text-right font-mono tabular-nums">160 – 179</td>
+                      <td className="py-3 px-4 text-right font-mono tabular-nums">100 – 109</td>
+                    </tr>
+                    <tr>
+                      <td className="py-3 px-4 font-medium text-red-700">ความดันสูงมาก</td>
                       <td className="py-3 px-4 text-right font-mono tabular-nums">&ge; 180</td>
-                      <td className="py-3 px-4 text-right font-mono tabular-nums">&ge; 120</td>
+                      <td className="py-3 px-4 text-right font-mono tabular-nums">&ge; 110</td>
+                    </tr>
+                    <tr>
+                      <td className="py-3 px-4 font-medium text-amber-800">ความดันตัวบนสูง (ISH)</td>
+                      <td className="py-3 px-4 text-right font-mono tabular-nums">&ge; 140</td>
+                      <td className="py-3 px-4 text-right font-mono tabular-nums">&lt; 90</td>
                     </tr>
                   </tbody>
                 </table>

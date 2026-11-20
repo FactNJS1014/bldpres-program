@@ -13,7 +13,7 @@ export interface BloodPressureRecord {
 }
 
 export interface BPCategory {
-  key: 'normal' | 'elevated' | 'stage1' | 'stage2' | 'crisis';
+  key: 'optimal' | 'normal' | 'high_normal' | 'mild' | 'moderate' | 'severe' | 'ish';
   label: string;
   shortLabel: string;
   description: string;
@@ -23,55 +23,77 @@ export interface BPCategory {
 }
 
 export function classifyBloodPressure(systolic: number, diastolic: number): BPCategory {
-  if (systolic >= 180 || diastolic >= 120) {
+  if (systolic >= 180 || diastolic >= 110) {
     return {
-      key: 'crisis',
-      label: 'ความดันสูงวิกฤต',
-      shortLabel: 'วิกฤต',
+      key: 'severe',
+      label: 'ความดันสูงมาก',
+      shortLabel: 'สูงมาก',
       description: 'ควรพบแพทย์โดยด่วน',
       textClass: 'text-red-700',
       dotColor: '#DC2626',
       bgTintClass: 'bg-red-50/70',
     };
   }
+  if (systolic >= 140 && diastolic < 90) {
+    return {
+      key: 'ish',
+      label: 'ความดันตัวบนสูง (ISH)',
+      shortLabel: 'ตัวบนสูง (ISH)',
+      description: 'ความดันตัวบนสูงเฉพาะจุด ควรปรึกษาแพทย์',
+      textClass: 'text-amber-800',
+      dotColor: '#B45309',
+      bgTintClass: 'bg-amber-50/70',
+    };
+  }
+  if (systolic >= 160 || diastolic >= 100) {
+    return {
+      key: 'moderate',
+      label: 'ความดันสูงปานกลาง',
+      shortLabel: 'สูงปานกลาง',
+      description: 'ควรปรึกษาแพทย์เพื่อวางแผนการรักษา',
+      textClass: 'text-orange-700',
+      dotColor: '#EA580C',
+      bgTintClass: 'bg-orange-50/60',
+    };
+  }
   if (systolic >= 140 || diastolic >= 90) {
     return {
-      key: 'stage2',
-      label: 'ความดันสูง ระยะที่ 2',
-      shortLabel: 'สูง ระยะ 2',
-      description: 'ควรปรึกษาแพทย์เพื่อวางแผนการรักษา',
-      textClass: 'text-red-600',
-      dotColor: '#DC2626',
-      bgTintClass: 'bg-red-50/50',
-    };
-  }
-  if (systolic >= 130 || diastolic >= 80) {
-    return {
-      key: 'stage1',
-      label: 'ความดันสูง ระยะที่ 1',
-      shortLabel: 'สูง ระยะ 1',
+      key: 'mild',
+      label: 'ความดันสูงเล็กน้อย',
+      shortLabel: 'สูงเล็กน้อย',
       description: 'ควรปรับพฤติกรรมและติดตามค่าใกล้ชิด',
-      textClass: 'text-amber-700',
+      textClass: 'text-amber-600',
       dotColor: '#D97706',
-      bgTintClass: 'bg-amber-50/60',
+      bgTintClass: 'bg-amber-50/50',
     };
   }
-  if (systolic >= 120 && diastolic < 80) {
+  if (systolic >= 130 || diastolic >= 85) {
     return {
-      key: 'elevated',
+      key: 'high_normal',
       label: 'ความดันค่อนข้างสูง',
       shortLabel: 'ค่อนข้างสูง',
       description: 'ควรควบคุมอาหารและออกกำลังกายสม่ำเสมอ',
-      textClass: 'text-amber-600',
-      dotColor: '#D97706',
-      bgTintClass: 'bg-amber-50/40',
+      textClass: 'text-sky-800',
+      dotColor: '#075985',
+      bgTintClass: 'bg-sky-50/60',
+    };
+  }
+  if (systolic >= 120 || diastolic >= 80) {
+    return {
+      key: 'normal',
+      label: 'ความดันปกติ',
+      shortLabel: 'ปกติ',
+      description: 'อยู่ในเกณฑ์ปกติ',
+      textClass: 'text-sky-700',
+      dotColor: '#0369A1',
+      bgTintClass: 'bg-sky-50/40',
     };
   }
   return {
-    key: 'normal',
-    label: 'ความดันปกติ',
-    shortLabel: 'ปกติ',
-    description: 'อยู่ในเกณฑ์สุขภาพดี',
+    key: 'optimal',
+    label: 'ความดันที่ดี',
+    shortLabel: 'ความดันที่ดี',
+    description: 'อยู่ในเกณฑ์สุขภาพดีเยี่ยม',
     textClass: 'text-emerald-700',
     dotColor: '#16A34A',
     bgTintClass: 'bg-emerald-50/50',
@@ -129,11 +151,13 @@ export interface WeeklySummary {
     { count: number; avgSystolic: number; avgDiastolic: number; avgPulse: number } | null
   >;
   statusCounts: {
+    optimal: number;
     normal: number;
-    elevated: number;
-    stage1: number;
-    stage2: number;
-    crisis: number;
+    high_normal: number;
+    mild: number;
+    moderate: number;
+    severe: number;
+    ish: number;
   };
   summaryText: string;
 }
@@ -171,7 +195,15 @@ export function computeWeeklySummary(logs: BloodPressureRecord[]): WeeklySummary
       diastolicDelta: null,
       category: null,
       byPeriod: emptyPeriod,
-      statusCounts: { normal: 0, elevated: 0, stage1: 0, stage2: 0, crisis: 0 },
+      statusCounts: {
+        optimal: 0,
+        normal: 0,
+        high_normal: 0,
+        mild: 0,
+        moderate: 0,
+        severe: 0,
+        ish: 0,
+      },
       summaryText: 'ยังไม่มีข้อมูลการวัดความดันในรอบ 7 วันที่ผ่านมา เริ่มบันทึกค่าแรกของคุณเพื่อดูสรุปผลอัตโนมัติ',
     };
   }
@@ -213,7 +245,15 @@ export function computeWeeklySummary(logs: BloodPressureRecord[]): WeeklySummary
     }
   });
 
-  const statusCounts = { normal: 0, elevated: 0, stage1: 0, stage2: 0, crisis: 0 };
+  const statusCounts = {
+    optimal: 0,
+    normal: 0,
+    high_normal: 0,
+    mild: 0,
+    moderate: 0,
+    severe: 0,
+    ish: 0,
+  };
   recentLogs.forEach((l) => {
     const c = classifyBloodPressure(l.systolic, l.diastolic);
     statusCounts[c.key] += 1;
