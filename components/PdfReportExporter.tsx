@@ -5,7 +5,6 @@ import { FileDown, Loader2 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import {
-  classifyBloodPressure,
   formatThaiDate,
   formatThaiDateTime,
   PERIOD_LABELS,
@@ -200,15 +199,13 @@ export default function PdfReportExporter({
               <th style={{ padding: '9px 8px', textAlign: 'right' }}>
                 ชีพจร (bpm)
               </th>
-              <th style={{ padding: '9px 8px' }}>เกณฑ์ประเมิน</th>
-              <th style={{ padding: '9px 8px' }}>หมายเหตุ</th>
             </tr>
           </thead>
           <tbody>
             {logs.length === 0 ? (
               <tr>
                 <td
-                  colSpan={6}
+                  colSpan={4}
                   style={{
                     padding: '28px 0',
                     textAlign: 'center',
@@ -219,56 +216,41 @@ export default function PdfReportExporter({
                 </td>
               </tr>
             ) : (
-              logs.map((log, idx) => {
-                const cat = classifyBloodPressure(log.systolic, log.diastolic);
-                return (
-                  <tr
-                    key={log.id}
+              logs.map((log, idx) => (
+                <tr
+                  key={log.id}
+                  style={{
+                    borderBottom: '1px solid #e2e8f0',
+                    backgroundColor: idx % 2 === 1 ? '#f8fafc' : '#ffffff',
+                  }}
+                >
+                  <td style={{ padding: '8px', color: '#334155' }}>
+                    {formatThaiDateTime(log.measuredAt)}
+                  </td>
+                  <td style={{ padding: '8px', color: '#334155' }}>
+                    {PERIOD_LABELS[log.period]}
+                  </td>
+                  <td
                     style={{
-                      borderBottom: '1px solid #e2e8f0',
-                      backgroundColor: idx % 2 === 1 ? '#f8fafc' : '#ffffff',
+                      padding: '8px',
+                      textAlign: 'right',
+                      fontWeight: 600,
+                      color: '#0f172a',
                     }}
                   >
-                    <td style={{ padding: '8px', color: '#334155' }}>
-                      {formatThaiDateTime(log.measuredAt)}
-                    </td>
-                    <td style={{ padding: '8px', color: '#334155' }}>
-                      {PERIOD_LABELS[log.period]}
-                    </td>
-                    <td
-                      style={{
-                        padding: '8px',
-                        textAlign: 'right',
-                        fontWeight: 600,
-                        color: '#0f172a',
-                      }}
-                    >
-                      {log.systolic}/{log.diastolic}
-                    </td>
-                    <td
-                      style={{
-                        padding: '8px',
-                        textAlign: 'right',
-                        color: '#334155',
-                      }}
-                    >
-                      {log.pulse}
-                    </td>
-                    <td
-                      style={{
-                        padding: '8px',
-                        fontWeight: 600,
-                        color: cat.dotColor,
-                      }}
-                    >
-                      {cat.shortLabel}
-                    </td>
-                    <td style={{ padding: '8px', color: '#475569' }}>
-                      {log.note || '—'}
-                    </td>
-                  </tr>
-                );
-              })
+                    {log.systolic}/{log.diastolic}
+                  </td>
+                  <td
+                    style={{
+                      padding: '8px',
+                      textAlign: 'right',
+                      color: '#334155',
+                    }}
+                  >
+                    {log.pulse}
+                  </td>
+                </tr>
+              ))
             )}
           </tbody>
         </table>
